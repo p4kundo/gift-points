@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gift Points Calculator</title>
+  <link href="bootstrap.min.css" rel="stylesheet">
+  <style>
+    .hidden-column {
+      display: none;
+    }
+    .gift-button-container {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .delete-custom-gift {
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="card">
+      <div class="card-body">
+<h1 class="text-center text-primary mb-4">Gift Points Calculator</h1>
+
+      <!-- Controls -->
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#customGiftModal">Add Custom Gift</button>
+        <button class="btn btn-danger" onclick="clearTable()">Clear Table</button>
+      </div>
+
+      <!-- Gift Buttons -->
+      <div class="mb-4" id="giftButtons"></div>
+      <div class="row text-center">
+        <div class="col-md-6 mb-3">
+          <div class="p-3 bg-warning-subtle rounded">
+            <h5>TOTAL POPULARITY</h5>
+            <div id="grandTotalPoints" class="fs-4 fw-bold text-primary">0</div>
+          </div>
+        </div>
+        <div class="col-md-6 mb-3">
+          <div class="p-3 bg-info-subtle rounded">
+            <h5>TOTAL PURPLE STARS</h5>
+            <div id="grandTotalStars" class="fs-4 fw-bold text-success">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-responsive">
+        <table class="table table-striped" id="giftsTable">
+          <thead class="table-dark">
+            <tr>
+              <th>GIFTS</th>
+              <th class="hidden-column">POINTS</th>
+              <th class="hidden-column">PURPLE STARS</th>
+              <th>QUANTITY</th>
+              <th>TOTAL POPULARITY</th>
+              <th>TOTAL PURPLE STARS</th>
+              <th>&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      </div>
+    </div>
+      
+  </div>
+
+  <!-- Custom Gift Modal -->
+  <div class="modal fade" id="customGiftModal" tabindex="-1" aria-labelledby="customGiftModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" id="customGiftForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="customGiftModalLabel">Add Custom Gift</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="giftName" class="form-label">Gift Name</label>
+            <input type="text" class="form-control" id="giftName" required>
+          </div>
+          <div class="mb-3">
+            <label for="giftPoints" class="form-label">Points</label>
+            <input type="number" class="form-control" id="giftPoints" required>
+          </div>
+          <div class="mb-3">
+            <label for="giftStars" class="form-label">Purple Stars</label>
+            <input type="number" class="form-control" id="giftStars" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Add Gift</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteConfirmModalLabel">Delete Custom Gift</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete the custom gift "<span id="deleteGiftName"></span>"?</p>
+          <p class="text-muted small">This will also remove any entries in the table for this gift.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete Gift</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Default gifts (cannot be deleted)
+    const defaultGifts = [
+      { gift: 'SKY ROCKET', points: 50000, stars: 1000 },
+      { gift: 'LUXURY YACHT', points: 20000, stars: 400 },
+      { gift: 'SLEEK RACER', points: 12000, stars: 240 },
+      { gift: 'STARRY FIREWORKS', points: 6000, stars: 120 },
+      { gift: 'LOVE BALLON', points: 3000, stars: 60 },
+      { gift: 'CHEERS', points: 600, stars: 12 },
+      { gift: 'CABBAGE DOG', points: 600, stars: 12 },
+      { gift: 'CAPUCCINO', points: 200, stars: 4 },
+      { gift: 'ROSE', points: 100, stars: 2 },
+      { gift: 'SLIPPERS', points: 10, stars: 0 },
+      { gift: 'HEART', points: 10, stars: 0 }
+    ];
+
+    // Load initial data from localStorage or use default
+    let initialData = JSON.parse(localStorage.getItem('giftCalculatorInitialData')) || [...defaultGifts];
+
+    // Save data to localStorage
+    function saveData() {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const data = [];
+      
+      rows.forEach(row => {
+        data.push({
+          gift: row.querySelector('.gift').value,
+          points: row.querySelector('.points').value,
+          stars: row.querySelector('.stars').value,
+          quantity: row.querySelector('.quantity').value
+        });
+      });
+      
+      localStorage.setItem('giftCalculatorData', JSON.stringify(data));
+      localStorage.setItem('giftCalculatorInitialData', JSON.stringify(initialData));
+    }
+
+    // Load data from localStorage
+    function loadData() {
+      const savedData = localStorage.getItem('giftCalculatorData');
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        data.forEach(item => {
+          addRow(item.gift, item.points, item.stars, item.quantity);
+        });
+        calculateTotals();
+      }
+    }
+
+    function addRow(gift = '', points = '', stars = '', quantity = '') {
+      const tbody = document.getElementById('tableBody');
+      const row = document.createElement('tr');
+      row.setAttribute('data-gift', gift);
+
+      row.innerHTML = `
+        <td><input type="text" class="form-control gift" value="${gift}"></td>
+        <td class="hidden-column"><input type="number" class="form-control points" value="${points}"></td>
+        <td class="hidden-column"><input type="number" class="form-control stars" value="${stars}"></td>
+        <td><input type="text" class="form-control quantity" value="${quantity}"></td>
+        <td class="total-points">0</td>
+        <td class="total-stars">0</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteRow(this)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+          class="bi bi-trash" viewBox="0 0 16 16">
+            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+          </svg></button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+      row.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+          calculateTotals();
+          saveData();
+        });
+      });
+
+      calculateTotals();
+      saveData();
+    }
+
+    function addOrUpdateGift(giftName) {
+      const existingRow = [...document.querySelectorAll('#tableBody tr')]
+        .find(row => row.getAttribute('data-gift') === giftName);
+
+      if (existingRow) {
+        const qtyInput = existingRow.querySelector('.quantity');
+        qtyInput.value = (parseInt(qtyInput.value) || 0) + 1;
+        calculateTotals();
+        saveData();
+      } else {
+        const gift = initialData.find(g => g.gift === giftName);
+        if (gift) {
+          addRow(gift.gift, gift.points, gift.stars, 1);
+        }
+      }
+    }
+
+    function deleteRow(button) {
+      const row = button.closest('tr');
+      row.remove();
+      calculateTotals();
+      saveData();
+    }
+
+    function deleteCustomGift(giftName, buttonElement) {
+      // Show confirmation modal
+      document.getElementById('deleteGiftName').textContent = giftName;
+      const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+      
+      // Store the gift name and button element for the confirm action
+      document.getElementById('confirmDeleteBtn').onclick = () => {
+        // Remove from initialData
+        initialData = initialData.filter(gift => gift.gift !== giftName);
+        
+        // Save only the updated initialData, not the table data
+        localStorage.setItem('giftCalculatorInitialData', JSON.stringify(initialData));
+        
+        // Remove any rows in the table with this gift
+        document.querySelectorAll('#tableBody tr').forEach(row => {
+          if (row.getAttribute('data-gift') === giftName) {
+            row.remove();
+          }
+        });
+        
+        // Recreate all gift buttons to reflect the updated initialData
+        createGiftButtons();
+        
+        calculateTotals();
+        // Save table data after removing rows
+        saveData();
+        
+        // Hide the modal
+        deleteModal.hide();
+      };
+      
+      deleteModal.show();
+    }
+
+    function calculateTotals() {
+      const rows = document.querySelectorAll('#tableBody tr');
+      let totalPoints = 0, totalStars = 0;
+
+      rows.forEach(row => {
+        const points = parseFloat(row.querySelector('.points').value) || 0;
+        const stars = parseFloat(row.querySelector('.stars').value) || 0;
+
+        const qtyInputField = row.querySelector('.quantity');
+        const qtyRaw = qtyInputField.value.trim();
+        let qty = 0;
+
+        try {
+          qty = Function('"use strict"; return (' + qtyRaw + ')')();
+          if (isNaN(qty)) qty = 0;
+        } catch {
+          qty = 0;
+        }
+
+        const tp = points * qty;
+        const ts = stars * qty;
+
+        row.querySelector('.total-points').textContent = tp.toLocaleString();
+        row.querySelector('.total-stars').textContent = ts.toLocaleString();
+
+        totalPoints += tp;
+        totalStars += ts;
+      });
+
+      document.getElementById('grandTotalPoints').textContent = totalPoints.toLocaleString();
+      document.getElementById('grandTotalStars').textContent = totalStars.toLocaleString();
+    }
+
+    function clearTable() {
+      document.getElementById('tableBody').innerHTML = '';
+      document.getElementById('grandTotalPoints').textContent = '0';
+      document.getElementById('grandTotalStars').textContent = '0';
+      localStorage.removeItem('giftCalculatorData');
+      // Keep custom gifts - only clear table data
+    }
+
+    function createGiftButtons() {
+      const container = document.getElementById('giftButtons');
+      container.innerHTML = ''; // Clear existing buttons
+      
+      // Separate default and custom gifts
+      const defaultGiftList = initialData.filter(gift => defaultGifts.some(dg => dg.gift === gift.gift));
+      const customGiftList = initialData.filter(gift => !defaultGifts.some(dg => dg.gift === gift.gift));
+      
+      // Create default gifts section
+      if (defaultGiftList.length > 0) {
+        const defaultSection = document.createElement('div');
+        defaultSection.className = 'd-flex flex-wrap gap-2 mb-3';
+        defaultSection.style.width = '100%';
+        
+        defaultGiftList.forEach(gift => {
+          const buttonContainer = document.createElement('div');
+          buttonContainer.className = 'gift-button-container';
+          buttonContainer.style.display = 'inline-flex';
+          buttonContainer.style.alignItems = 'center';
+          buttonContainer.style.gap = '5px';
+          
+          const button = document.createElement('button');
+          button.className = 'btn btn-outline-primary btn-sm';
+          button.textContent = gift.gift;
+          button.onclick = () => addOrUpdateGift(gift.gift);
+          
+          buttonContainer.appendChild(button);
+          defaultSection.appendChild(buttonContainer);
+        });
+        
+        container.appendChild(defaultSection);
+      }
+      
+      // Add HR separator if there are custom gifts
+      if (customGiftList.length > 0) {
+        const hr = document.createElement('hr');
+        hr.className = 'my-3';
+        container.appendChild(hr);
+        
+        // Create custom gifts section
+        const customSection = document.createElement('div');
+        customSection.className = 'd-flex flex-wrap gap-2';
+        customSection.style.width = '100%';
+        
+        customGiftList.forEach(gift => {
+          const buttonContainer = document.createElement('div');
+          buttonContainer.className = 'gift-button-container';
+          buttonContainer.style.display = 'inline-flex';
+          buttonContainer.style.alignItems = 'center';
+          buttonContainer.style.gap = '5px';
+          
+          const button = document.createElement('button');
+          button.className = 'btn btn-outline-primary btn-sm';
+          button.textContent = gift.gift;
+          button.onclick = () => addOrUpdateGift(gift.gift);
+          
+          buttonContainer.appendChild(button);
+          
+          // Add delete button for custom gifts
+          const deleteBtn = document.createElement('span');
+          deleteBtn.className = 'delete-custom-gift';
+          deleteBtn.innerHTML = '&times;';
+          deleteBtn.title = 'Delete this custom gift';
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteCustomGift(gift.gift, buttonContainer);
+          };
+          buttonContainer.appendChild(deleteBtn);
+          
+          customSection.appendChild(buttonContainer);
+        });
+        
+        container.appendChild(customSection);
+      }
+    }
+
+    // Modal form submit
+    document.getElementById('customGiftForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const name = document.getElementById('giftName').value.trim();
+      const points = parseInt(document.getElementById('giftPoints').value);
+      const stars = parseInt(document.getElementById('giftStars').value);
+
+      if (!name || isNaN(points) || isNaN(stars)) return;
+
+      // Check if gift already exists
+      if (initialData.some(gift => gift.gift === name)) {
+        alert('A gift with this name already exists!');
+        return;
+      }
+
+      const newGift = { gift: name, points, stars };
+      initialData.push(newGift);
+      addRow(name, points, stars, 1);
+
+      // Save the updated initial data
+      saveData();
+      
+      // Recreate buttons to include the new one
+      createGiftButtons();
+
+      const modal = bootstrap.Modal.getInstance(document.getElementById('customGiftModal'));
+      modal.hide();
+      this.reset();
+    });
+
+    window.onload = () => {
+      createGiftButtons();
+      loadData();
+    };
+  </script>
+</body>
+</html>
